@@ -886,72 +886,73 @@ def _do_translate_single(
     # Rest of the original translation logic...
     # [Previous implementation of do_translate continues here]
 
-    # 检测是否为扫描文件
-    if translation_config.skip_scanned_detection:
-        logger.debug("skipping scanned file detection")
-    else:
-        logger.debug("start detect scanned file")
-        DetectScannedFile(translation_config).process(
-            docs, temp_pdf_path, mediabox_data
-        )
-        logger.debug("finish detect scanned file")
+    if not translation_config.pre_parsed_il:
+        # 检测是否为扫描文件
+        if translation_config.skip_scanned_detection:
+            logger.debug("skipping scanned file detection")
+        else:
+            logger.debug("start detect scanned file")
+            DetectScannedFile(translation_config).process(
+                docs, temp_pdf_path, mediabox_data
+            )
+            logger.debug("finish detect scanned file")
+            if translation_config.debug:
+                xml_converter.write_json(
+                    docs,
+                    translation_config.get_working_file_path("detect_scanned_file.json"),
+                )
+
+        # Generate layouts for all pages
+        logger.debug("start generating layouts")
+        docs = LayoutParser(translation_config).process(docs, doc_pdf2zh)
+        logger.debug("finish generating layouts")
+        close_process_pool()
         if translation_config.debug:
             xml_converter.write_json(
                 docs,
-                translation_config.get_working_file_path("detect_scanned_file.json"),
+                translation_config.get_working_file_path("layout_generator.json"),
             )
 
-    # Generate layouts for all pages
-    logger.debug("start generating layouts")
-    docs = LayoutParser(translation_config).process(docs, doc_pdf2zh)
-    logger.debug("finish generating layouts")
-    close_process_pool()
-    if translation_config.debug:
-        xml_converter.write_json(
-            docs,
-            translation_config.get_working_file_path("layout_generator.json"),
-        )
-
-    if translation_config.table_model:
-        docs = TableParser(translation_config).process(docs, doc_pdf2zh)
-        logger.debug("finish table parser")
+        if translation_config.table_model:
+            docs = TableParser(translation_config).process(docs, doc_pdf2zh)
+            logger.debug("finish table parser")
+            if translation_config.debug:
+                xml_converter.write_json(
+                    docs,
+                    translation_config.get_working_file_path("table_parser.json"),
+                )
+        ParagraphFinder(translation_config).process(docs)
+        logger.debug(f"finish paragraph finder from {temp_pdf_path}")
         if translation_config.debug:
             xml_converter.write_json(
                 docs,
-                translation_config.get_working_file_path("table_parser.json"),
+                translation_config.get_working_file_path("paragraph_finder.json"),
             )
-    ParagraphFinder(translation_config).process(docs)
-    logger.debug(f"finish paragraph finder from {temp_pdf_path}")
-    if translation_config.debug:
-        xml_converter.write_json(
-            docs,
-            translation_config.get_working_file_path("paragraph_finder.json"),
-        )
-    StylesAndFormulas(translation_config).process(docs)
-    logger.debug(f"finish styles and formulas from {temp_pdf_path}")
-    if translation_config.debug:
-        xml_converter.write_json(
-            docs,
-            translation_config.get_working_file_path("styles_and_formulas.json"),
-        )
+        StylesAndFormulas(translation_config).process(docs)
+        logger.debug(f"finish styles and formulas from {temp_pdf_path}")
+        if translation_config.debug:
+            xml_converter.write_json(
+                docs,
+                translation_config.get_working_file_path("styles_and_formulas.json"),
+            )
 
-    if translation_config.parse_only:
-        il_path = (
-            Path(translation_config.pre_parsed_il)
-            if translation_config.pre_parsed_il
-            else translation_config.get_working_file_path("il.xml")
-        )
-        logger.info("parse_only mode: saving IL to %s", il_path)
-        xml_converter.write_xml(docs, str(il_path))
-        result = TranslateResult(None, None)
-        result.original_pdf_path = translation_config.input_file
-        result.total_valid_character_count = (
-            translation_config.shared_context_cross_split_part.valid_char_count_total
-        )
-        result.total_valid_text_token_count = (
-            translation_config.shared_context_cross_split_part.total_valid_text_token_count
-        )
-        return result
+        if translation_config.parse_only:
+            il_path = (
+                Path(translation_config.pre_parsed_il)
+                if translation_config.pre_parsed_il
+                else translation_config.get_working_file_path("il.xml")
+            )
+            logger.info("parse_only mode: saving IL to %s", il_path)
+            xml_converter.write_xml(docs, str(il_path))
+            result = TranslateResult(None, None)
+            result.original_pdf_path = translation_config.input_file
+            result.total_valid_character_count = (
+                translation_config.shared_context_cross_split_part.valid_char_count_total
+            )
+            result.total_valid_text_token_count = (
+                translation_config.shared_context_cross_split_part.total_valid_text_token_count
+            )
+            return result
 
     translate_engine = translation_config.translator
     term_extraction_engine = translation_config.get_term_extraction_translator()
