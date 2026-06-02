@@ -217,6 +217,8 @@ class TranslationConfig:
         metadata_extra_data: str | None = None,
         term_pool_max_workers: int | None = None,
         disable_same_text_fallback: bool = False,
+        parse_only: bool = False,
+        pre_parsed_il: str | Path | None = None,
     ):
         self.translator = translator
         self.term_extraction_translator = term_extraction_translator or translator
@@ -376,6 +378,8 @@ class TranslationConfig:
             "cache_hit_prompt_tokens": 0,
         }
         self.disable_same_text_fallback = disable_same_text_fallback
+        self.parse_only = parse_only
+        self.pre_parsed_il = str(pre_parsed_il) if pre_parsed_il else None
 
         if self.ocr_workaround:
             self.remove_non_formula_lines = False

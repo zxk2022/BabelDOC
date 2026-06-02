@@ -839,18 +839,29 @@ def _do_translate_single(
     #         raise ScannedPDFError("Scanned PDF detected.")
 
     xml_converter = XMLConverter()
-    logger.debug(f"start parse il from {temp_pdf_path}")
-    from babeldoc.format.pdf.new_parser.native_parse import (
-        parse_prepared_pdf_with_new_parser_to_legacy_ir,
-    )
 
-    docs = parse_prepared_pdf_with_new_parser_to_legacy_ir(
-        temp_pdf_path,
-        config=translation_config,
-        doc_pdf=doc_pdf2zh,
-    )
-    logger.debug(f"finish parse il from {temp_pdf_path}")
-    logger.debug(f"finish create il from {temp_pdf_path}")
+    if translation_config.pre_parsed_il:
+        il_path = Path(translation_config.pre_parsed_il)
+        if not il_path.is_file():
+            raise FileNotFoundError(
+                f"Pre-parsed IL file not found: {il_path}"
+            )
+        logger.info("Loading pre-parsed IL from %s", il_path)
+        docs = xml_converter.read_xml(str(il_path))
+        logger.info("Loaded pre-parsed IL: %d pages", len(docs.page))
+    else:
+        logger.debug(f"start parse il from {temp_pdf_path}")
+        from babeldoc.format.pdf.new_parser.native_parse import (
+            parse_prepared_pdf_with_new_parser_to_legacy_ir,
+        )
+
+        docs = parse_prepared_pdf_with_new_parser_to_legacy_ir(
+            temp_pdf_path,
+            config=translation_config,
+            doc_pdf=doc_pdf2zh,
+        )
+        logger.debug(f"finish parse il from {temp_pdf_path}")
+        logger.debug(f"finish create il from {temp_pdf_path}")
     if translation_config.only_include_translated_page and not docs.page:
         return None
 
@@ -923,6 +934,24 @@ def _do_translate_single(
             docs,
             translation_config.get_working_file_path("styles_and_formulas.json"),
         )
+
+    if translation_config.parse_only:
+        il_path = (
+            Path(translation_config.pre_parsed_il)
+            if translation_config.pre_parsed_il
+            else translation_config.get_working_file_path("il.xml")
+        )
+        logger.info("parse_only mode: saving IL to %s", il_path)
+        xml_converter.write_xml(docs, str(il_path))
+        result = TranslateResult(None, None)
+        result.original_pdf_path = translation_config.input_file
+        result.total_valid_character_count = (
+            translation_config.shared_context_cross_split_part.valid_char_count_total
+        )
+        result.total_valid_text_token_count = (
+            translation_config.shared_context_cross_split_part.total_valid_text_token_count
+        )
+        return result
 
     translate_engine = translation_config.translator
     term_extraction_engine = translation_config.get_term_extraction_translator()
