@@ -886,7 +886,7 @@ def _do_translate_single(
     # Rest of the original translation logic...
     # [Previous implementation of do_translate continues here]
 
-    if not translation_config.pre_parsed_il:
+    if not translation_config.pre_parsed_il or translation_config.parse_only:
         # 检测是否为扫描文件
         if translation_config.skip_scanned_detection:
             logger.debug("skipping scanned file detection")
