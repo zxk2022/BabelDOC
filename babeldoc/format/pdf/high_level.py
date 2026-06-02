@@ -840,7 +840,7 @@ def _do_translate_single(
 
     xml_converter = XMLConverter()
 
-    if translation_config.pre_parsed_il:
+    if translation_config.pre_parsed_il and not translation_config.parse_only:
         il_path = Path(translation_config.pre_parsed_il)
         if not il_path.is_file():
             raise FileNotFoundError(
